@@ -1246,9 +1246,7 @@
         var fecha = o.creado ? new Date(o.creado) : null;
         var fechaStr = fecha ? fecha.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
         var upd = o.updated_at ? new Date(o.updated_at) : null;
-        var updStr = (upd && fecha && (upd.getTime() - fecha.getTime()) > 5000)
-          ? upd.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'medium' })
-          : '';
+        var updStr = upd ? upd.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
         var estado = o.estado || 'nuevo';
         var estados = { nuevo: 'Nuevo', confirmado: 'Confirmado', preparacion: 'En Preparacion', enviado: 'Enviado', entregado: 'Entregado' };
         return {
