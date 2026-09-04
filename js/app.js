@@ -1006,11 +1006,11 @@
         var btnHtml = next
           ? '<button class="btn btn-primary btn-sm" data-adv-pedido="' + o.id + '" data-next="' + next + '">' + (labelMap[est] || 'Avanzar') + '</button>'
           : '<span class="muted">✔ Entregado</span>';
-        return '<div class="reg-item">' +
+        return '<div class="reg-item" data-pedido-row="' + o.id + '">' +
           '<div><strong>' + esc(o.nombre || 'Cliente') + '</strong> · <span class="muted">' + esc(o.ciudad || '') + '</span></div>' +
           '<div class="muted">' + items + ' ítems · origen ' + esc(o.origen || '') + '</div>' +
-          '<div class="muted">Estado: <strong>' + esc(est) + '</strong> · ' + esc((o.creado || '').toString().slice(0, 10)) + '</div>' +
-          '<div class="reg-actions">' + btnHtml +
+          '<div class="muted">Estado: <strong data-pedido-estado="' + o.id + '">' + esc(est) + '</strong> · ' + esc((o.creado || '').toString().slice(0, 10)) + '</div>' +
+          '<div class="reg-actions" data-pedido-actions="' + o.id + '">' + btnHtml +
           '<button class="btn btn-ghost btn-sm danger" data-del-pedido="' + o.id + '">🗑</button>' +
           '</div></div>';
       }).join('');
@@ -1023,13 +1023,32 @@
 
   function updatePedidoEstado(id, estado) {
     var numId = parseInt(id, 10);
+    var nextMap = { nuevo: 'confirmado', confirmado: 'preparacion', preparacion: 'enviado', enviado: 'entregado' };
+    var labelMap = { nuevo: 'Confirmar', confirmado: 'Preparar', preparacion: 'Enviar', enviado: 'Entregar' };
     Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
       if (res && res.error) { console.error('signIn error:', res.error); alert('Error de autenticación.'); return; }
       return Db.client().from('pedidos').update({ estado: estado }).eq('id', numId).select();
     }).then(function (res) {
       if (!res) return;
       if (res && res.error) { console.error('update error:', res.error); alert('Error al actualizar: ' + res.error.message); return; }
-      loadPedidos();
+      var estEl = document.querySelector('[data-pedido-estado="' + numId + '"]');
+      if (estEl) estEl.textContent = estado;
+      var actEl = document.querySelector('[data-pedido-actions="' + numId + '"]');
+      if (actEl) {
+        var next = nextMap[estado];
+        var btnHtml = next
+          ? '<button class="btn btn-primary btn-sm" data-adv-pedido="' + numId + '" data-next="' + next + '">' + (labelMap[estado] || 'Avanzar') + '</button>'
+          : '<span class="muted">✔ Entregado</span>';
+        actEl.innerHTML = btnHtml + '<button class="btn btn-ghost btn-sm danger" data-del-pedido="' + numId + '">🗑</button>';
+        var newBtn = actEl.querySelector('[data-adv-pedido]');
+        if (newBtn) newBtn.addEventListener('click', function () {
+          updatePedidoEstado(newBtn.getAttribute('data-adv-pedido'), newBtn.getAttribute('data-next'));
+        });
+        var delBtn = actEl.querySelector('[data-del-pedido]');
+        if (delBtn) delBtn.addEventListener('click', function () {
+          confirmDelete('pedido', delBtn.getAttribute('data-del-pedido'));
+        });
+      }
       loadDashboard();
     }).catch(function (e) {
       console.error('updatePedidoEstado error:', e);
