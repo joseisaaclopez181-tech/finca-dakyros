@@ -1232,7 +1232,7 @@
 
   function exportPedidosExcel() {
     Db.fetchPedidos().then(function (rows) {
-      if (!rows.length) { alert('No hay pedidos para exportar.'); return; }
+      if (!rows || !rows.length) { alert('No hay pedidos para exportar.'); return; }
       var head = ['ID', 'Nombre', 'Ciudad', 'Dirección', 'Teléfono', 'Nota', 'Estado', 'Origen', 'Fecha', 'Ítems'];
       var lines = [head.join('\t')];
       rows.forEach(function (o) {
@@ -1247,6 +1247,9 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(a.href);
+    }).catch(function (e) {
+      console.error('Error exportando pedidos:', e);
+      alert('Error al exportar pedidos. Asegúrate de estar logueado como administrador.');
     });
   }
 
