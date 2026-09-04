@@ -1234,18 +1234,29 @@
     Db.fetchPedidos().then(function (rows) {
       if (!rows || !rows.length) { alert('No hay pedidos para exportar.'); return; }
       var data = rows.map(function (o) {
-        var items = Array.isArray(o.items) ? o.items.map(function (i) { return (i.nombre || '') + ' x' + (i.cantidad || 1); }).join(', ') : '';
+        var itemsArr = Array.isArray(o.items) ? o.items : [];
+        var itemsTxt = itemsArr.map(function (i) {
+          var sub = (i.precio || 0) * (i.cantidad || 1);
+          return (i.nombre || '') + ' x' + (i.cantidad || 1) + ' (L ' + number(sub) + ')';
+        }).join(', ');
+        var total = itemsArr.reduce(function (s, i) { return s + (i.precio || 0) * (i.cantidad || 1); }, 0);
+        var fecha = o.creado ? new Date(o.creado) : null;
+        var fechaStr = fecha ? fecha.toLocaleDateString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
+        var upd = o.updated_at ? new Date(o.updated_at) : null;
+        var updStr = upd ? upd.toLocaleDateString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
+        var estado = o.estado || 'nuevo';
+        var estados = { nuevo: 'Nuevo', confirmado: 'Confirmado', preparacion: 'En Preparacion', enviado: 'Enviado', entregado: 'Entregado' };
         return {
-          ID: o.id,
-          Nombre: o.nombre,
-          Ciudad: o.ciudad,
-          Direccion: o.direccion,
-          Telefono: o.telefono,
-          Nota: o.nota,
-          Estado: o.estado,
-          Origen: o.origen,
-          Fecha: (o.creado || '').toString().slice(0, 16),
-          Items: items
+          'ID': 'P-' + String(o.id || 0).padStart(3, '0'),
+          'Nombre': o.nombre || '',
+          'Ciudad': o.ciudad || '',
+          'Direccion': o.direccion || '',
+          'Telefono': o.telefono || '',
+          'Items': itemsTxt,
+          'Total': 'L' + number(total),
+          'Estado': estados[estado] || estado,
+          'Creado': fechaStr,
+          'Actualizado': updStr
         };
       });
       if (typeof XLSX === 'undefined') {
