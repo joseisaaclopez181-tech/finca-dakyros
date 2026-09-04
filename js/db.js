@@ -66,12 +66,14 @@
       var self = this;
       var c = client();
       if (!c) return Promise.resolve([]);
-      return c.auth.getUser().then(function (result) {
-        var user = result && result.data && result.data.user;
-        if (user) return self.fetchPedidos();
-        return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
-          return self.fetchPedidos();
-        });
+      return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
+        if (res && res.error) {
+          console.error('fetchPedidosAsAdmin: signIn failed', res.error.message);
+        }
+        return self.fetchPedidos();
+      }).catch(function (e) {
+        console.error('fetchPedidosAsAdmin error:', e);
+        return [];
       });
     },
     pushPedidos: function (rows) {
