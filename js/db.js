@@ -42,7 +42,10 @@
   function selectAll(store) {
     var t = table(store);
     if (!t) return Promise.resolve([]);
-    return t.select('*').then(function (r) { return r.error ? [] : (r.data || []); });
+    return t.select('*').then(function (r) {
+      if (r.error) { console.error('selectAll(' + store + ') error:', r.error.message); return []; }
+      return r.data || [];
+    });
   }
 
   var Db = {
@@ -80,14 +83,35 @@
     pushPedidosAsGuest: function (rows) {
       var self = this;
       var c = client();
-      if (!c) return Promise.resolve({ count: 0 });
-      return c.auth.getSession().then(function (sess) {
-        var hasUser = sess && sess.data && sess.data.session && sess.data.session.user;
-        if (hasUser) return self.pushPedidos(rows);
-        return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
-          return self.pushPedidos(rows);
-        }).catch(function () {
-          return self.pushPedidos(rows);
+      if (!c) return Promise.reject(new Error('Supabase no configurado'));
+
+      function tryInsert() {
+        var t = table('pedidos');
+        if (!t) return Promise.reject(new Error('No hay conexion'));
+        var clean = (rows || []).map(function (o) {
+          return {
+            nombre: o.nombre || '',
+            ciudad: o.ciudad || '',
+            direccion: o.direccion || '',
+            telefono: o.telefono || '',
+            nota: o.nota || '',
+            items: o.items || [],
+            estado: o.estado || 'nuevo',
+            origen: o.origen || 'whatsapp'
+          };
+        });
+        return t.insert(clean, { defaultToNull: false }).then(function (res) {
+          if (res && res.error) throw res.error;
+          return res;
+        });
+      }
+
+      return c.auth.getUser().then(function (result) {
+        var user = result && result.data && result.data.user;
+        if (user) return tryInsert();
+        return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
+          if (res && res.error) throw res.error;
+          return tryInsert();
         });
       });
     },

@@ -995,7 +995,7 @@
   function loadPedidos() {
     var box = cpanelContainer('#pedido-list', 'Cargando pedidos…');
     Db.fetchPedidos().then(function (rows) {
-      if (!rows.length) { box.innerHTML = '<p class="muted">Sin pedidos registrados.</p>'; return; }
+      if (!rows || !rows.length) { box.innerHTML = '<p class="muted">Sin pedidos registrados.</p>'; return; }
       box.innerHTML = rows.map(function (o) {
         var items = Array.isArray(o.items) ? o.items.length : 0;
         return '<div class="reg-item">' +
@@ -1331,12 +1331,18 @@
 
       var saved = Promise.resolve();
       if (window.Db && Db.pushPedidosAsGuest) {
-        saved = Db.pushPedidosAsGuest([pedido]).catch(function () { return null; });
+        saved = Db.pushPedidosAsGuest([pedido]);
       }
       saved.then(function () {
         currentCheckout = pedido;
         buildWhatsAppOrder(pedido);
         showCoDone();
+      }).catch(function (err) {
+        console.error('Error guardando pedido:', err);
+        currentCheckout = pedido;
+        buildWhatsAppOrder(pedido);
+        showCoDone();
+        showCoError('Pedido enviado por WhatsApp. No se guardó en el servidor.');
       });
     });
 
