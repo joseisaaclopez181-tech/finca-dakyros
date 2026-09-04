@@ -908,32 +908,28 @@
 
   /* ---- DASHBOARD ---- */
   function loadDashboard() {
-    Db.fetchProductos().then(function (prod) {
-      setText('cp-stat-productos', prod.length);
-    });
-    Db.fetchCategorias().then(function (cat) {
-      setText('cp-stat-categorias', cat.length);
-    });
-    Db.fetchUsuarios().then(function (usr) {
-      setText('cp-stat-usuarios', usr.length);
-    });
-    var pedFetch = (Db.fetchPedidosAsAdmin || Db.fetchPedidos)();
-    pedFetch.then(function (ped) {
-      setText('cp-stat-pedidos', ped.length);
-      var pend = ped.filter(function (p) { return p.estado === 'nuevo' || p.estado === 'confirmado' || p.estado === 'preparacion'; });
-      setText('cp-stat-pendientes', pend.length);
-      var dash = $('#cp-dash-pedidos');
-      if (!dash) return;
-      if (!ped.length) {
-        dash.innerHTML = '<p class="muted">Sin pedidos registrados.</p>';
-        return;
-      }
-      dash.innerHTML = ped.slice(0, 5).map(function (o) {
-        var items = Array.isArray(o.items) ? o.items.length : 0;
-        return '<div class="reg-item"><div><strong>' + esc(o.nombre || 'Cliente') + '</strong> · ' + esc(o.ciudad || '') + '</div>' +
-          '<div class="muted">' + items + ' ítems · ' + esc(o.estado || 'nuevo') + '</div></div>';
-      }).join('');
-    }).catch(function (e) { console.error('Dashboard pedidos', e); });
+    Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), (Db.fetchPedidosAsAdmin || Db.fetchPedidos)()])
+      .then(function (res) {
+        var prod = res[0], cat = res[1], usr = res[2], ped = res[3];
+        setText('cp-stat-productos', prod.length);
+        setText('cp-stat-categorias', cat.length);
+        setText('cp-stat-usuarios', usr.length);
+        setText('cp-stat-pedidos', ped.length);
+        var pend = ped.filter(function (p) { return p.estado === 'nuevo' || p.estado === 'confirmado' || p.estado === 'preparacion'; });
+        setText('cp-stat-pendientes', pend.length);
+        var dash = $('#cp-dash-pedidos');
+        if (!dash) return;
+        if (!ped.length) {
+          dash.innerHTML = '<p class="muted">Sin pedidos registrados.</p>';
+          return;
+        }
+        dash.innerHTML = ped.slice(0, 5).map(function (o) {
+          var items = Array.isArray(o.items) ? o.items.length : 0;
+          return '<div class="reg-item"><div><strong>' + esc(o.nombre || 'Cliente') + '</strong> · ' + esc(o.ciudad || '') + '</div>' +
+            '<div class="muted">' + items + ' ítems · ' + esc(o.estado || 'nuevo') + '</div></div>';
+        }).join('');
+      }).catch(function (e) { console.error('Dashboard', e); });
+  }
   }
 
   function setText(id, val) {
