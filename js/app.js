@@ -1244,9 +1244,9 @@
         }).join(', ');
         var total = itemsArr.reduce(function (s, i) { return s + (i.precio || 0) * (i.cantidad || 1); }, 0);
         var fecha = o.creado ? new Date(o.creado) : null;
-        var fechaStr = fecha ? fecha.toLocaleDateString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
+        var fechaStr = fecha ? fecha.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
         var upd = o.updated_at ? new Date(o.updated_at) : null;
-        var updStr = upd ? upd.toLocaleDateString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
+        var updStr = upd ? upd.toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'medium' }) : '';
         var estado = o.estado || 'nuevo';
         var estados = { nuevo: 'Nuevo', confirmado: 'Confirmado', preparacion: 'En Preparacion', enviado: 'Enviado', entregado: 'Entregado' };
         return {

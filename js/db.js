@@ -63,14 +63,13 @@
     /* ---- Pedidos ---- */
     fetchPedidos: function () { return selectAll('pedidos'); },
     fetchPedidosAsAdmin: function () {
-      var self = this;
       var c = client();
       if (!c) return Promise.resolve([]);
-      return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
+      return Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
         if (res && res.error) {
           console.error('fetchPedidosAsAdmin: signIn failed', res.error.message);
         }
-        return self.fetchPedidos();
+        return Db.fetchPedidos();
       }).catch(function (e) {
         console.error('fetchPedidosAsAdmin error:', e);
         return [];
@@ -95,7 +94,6 @@
       return upsert('pedidos', clean);
     },
     pushPedidosAsGuest: function (rows) {
-      var self = this;
       var c = client();
       if (!c) return Promise.reject(new Error('Supabase no configurado'));
 
@@ -123,7 +121,7 @@
       return c.auth.getUser().then(function (result) {
         var user = result && result.data && result.data.user;
         if (user) return tryInsert();
-        return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
+        return Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
           if (res && res.error) throw res.error;
           return tryInsert();
         });
