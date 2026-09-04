@@ -908,7 +908,7 @@
 
   /* ---- DASHBOARD ---- */
   function loadDashboard() {
-    Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), Db.fetchPedidos()])
+    Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), (Db.fetchPedidosAsAdmin || Db.fetchPedidos)()])
       .then(function (res) {
         var prod = res[0], cat = res[1], usr = res[2], ped = res[3];
         setText('cp-stat-productos', prod.length);
@@ -994,7 +994,8 @@
   /* ---- PEDIDOS ---- */
   function loadPedidos() {
     var box = cpanelContainer('#pedido-list', 'Cargando pedidos…');
-    Db.fetchPedidos().then(function (rows) {
+    var fetch = (window.Db && Db.fetchPedidosAsAdmin) ? Db.fetchPedidosAsAdmin() : Db.fetchPedidos();
+    fetch.then(function (rows) {
       if (!rows || !rows.length) { box.innerHTML = '<p class="muted">Sin pedidos registrados.</p>'; return; }
       box.innerHTML = rows.map(function (o) {
         var items = Array.isArray(o.items) ? o.items.length : 0;
@@ -1019,7 +1020,8 @@
   }
 
   function updatePedidoEstado(id, estado) {
-    Db.fetchPedidos().then(function (rows) {
+    var fetch = (Db.fetchPedidosAsAdmin || Db.fetchPedidos).call(Db);
+    fetch.then(function (rows) {
       var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
       if (!target) return;
       target.estado = estado;
@@ -1145,7 +1147,7 @@
     if (kind === 'usuario') fn = Db.fetchUsuarios;
     if (kind === 'categoria') fn = Db.fetchCategorias;
     if (kind === 'producto') fn = Db.fetchProductos;
-    if (kind === 'pedido') fn = Db.fetchPedidos;
+    if (kind === 'pedido') fn = Db.fetchPedidosAsAdmin || Db.fetchPedidos;
     fn().then(function (rows) {
       var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
       if (!target) return;
@@ -1231,7 +1233,8 @@
   }
 
   function exportPedidosExcel() {
-    Db.fetchPedidos().then(function (rows) {
+    var fetch = (window.Db && Db.fetchPedidosAsAdmin) ? Db.fetchPedidosAsAdmin() : Db.fetchPedidos();
+    fetch.then(function (rows) {
       if (!rows || !rows.length) { alert('No hay pedidos para exportar.'); return; }
       var data = rows.map(function (o) {
         var itemsArr = Array.isArray(o.items) ? o.items : [];

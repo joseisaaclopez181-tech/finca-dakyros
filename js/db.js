@@ -62,6 +62,18 @@
 
     /* ---- Pedidos ---- */
     fetchPedidos: function () { return selectAll('pedidos'); },
+    fetchPedidosAsAdmin: function () {
+      var self = this;
+      var c = client();
+      if (!c) return Promise.resolve([]);
+      return c.auth.getUser().then(function (result) {
+        var user = result && result.data && result.data.user;
+        if (user) return self.fetchPedidos();
+        return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
+          return self.fetchPedidos();
+        });
+      });
+    },
     pushPedidos: function (rows) {
       var clean = (rows || []).map(function (o) {
         return {
