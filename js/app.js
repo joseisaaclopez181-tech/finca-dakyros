@@ -1233,23 +1233,32 @@
   function exportPedidosExcel() {
     Db.fetchPedidos().then(function (rows) {
       if (!rows || !rows.length) { alert('No hay pedidos para exportar.'); return; }
-      var head = ['ID', 'Nombre', 'Ciudad', 'Dirección', 'Teléfono', 'Nota', 'Estado', 'Origen', 'Fecha', 'Ítems'];
-      var lines = [head.join('\t')];
-      rows.forEach(function (o) {
+      var data = rows.map(function (o) {
         var items = Array.isArray(o.items) ? o.items.map(function (i) { return (i.nombre || '') + ' x' + (i.cantidad || 1); }).join(', ') : '';
-        lines.push([o.id, o.nombre, o.ciudad, o.direccion, o.telefono, o.nota, o.estado, o.origen, (o.creado || '').toString().slice(0,16), items].join('\t'));
+        return {
+          ID: o.id,
+          Nombre: o.nombre,
+          Ciudad: o.ciudad,
+          Direccion: o.direccion,
+          Telefono: o.telefono,
+          Nota: o.nota,
+          Estado: o.estado,
+          Origen: o.origen,
+          Fecha: (o.creado || '').toString().slice(0, 16),
+          Items: items
+        };
       });
-      var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'pedidos-finca-dakyros.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
+      if (typeof XLSX === 'undefined') {
+        alert('Libreria Excel no cargada. Intenta de nuevo.');
+        return;
+      }
+      var ws = XLSX.utils.json_to_sheet(data);
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+      XLSX.writeFile(wb, 'pedidos-finca-dakyros.xlsx');
     }).catch(function (e) {
       console.error('Error exportando pedidos:', e);
-      alert('Error al exportar pedidos. Asegúrate de estar logueado como administrador.');
+      alert('Error al exportar pedidos. Asegurate de estar logueado como administrador.');
     });
   }
 
