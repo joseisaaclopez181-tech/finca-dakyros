@@ -1022,10 +1022,13 @@
   }
 
   function updatePedidoEstado(id, estado) {
-    Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
-      return Db.client().from('pedidos').update({ estado: estado }).eq('id', id);
+    var numId = parseInt(id, 10);
+    Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function (res) {
+      if (res && res.error) { console.error('signIn error:', res.error); alert('Error de autenticación.'); return; }
+      return Db.client().from('pedidos').update({ estado: estado }).eq('id', numId).select();
     }).then(function (res) {
-      if (res && res.error) throw res.error;
+      if (!res) return;
+      if (res && res.error) { console.error('update error:', res.error); alert('Error al actualizar: ' + res.error.message); return; }
       loadPedidos();
       loadDashboard();
     }).catch(function (e) {
