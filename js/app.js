@@ -1330,8 +1330,8 @@
       };
 
       var saved = Promise.resolve();
-      if (window.Db && Db.pushPedidos) {
-        saved = Db.pushPedidos([pedido]).catch(function () { return null; });
+      if (window.Db && Db.pushPedidosAsGuest) {
+        saved = Db.pushPedidosAsGuest([pedido]).catch(function () { return null; });
       }
       saved.then(function () {
         currentCheckout = pedido;

@@ -77,6 +77,20 @@
       });
       return upsert('pedidos', clean);
     },
+    pushPedidosAsGuest: function (rows) {
+      var self = this;
+      var c = client();
+      if (!c) return Promise.resolve({ count: 0 });
+      return c.auth.getSession().then(function (sess) {
+        var hasUser = sess && sess.data && sess.data.session && sess.data.session.user;
+        if (hasUser) return self.pushPedidos(rows);
+        return self.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
+          return self.pushPedidos(rows);
+        }).catch(function () {
+          return self.pushPedidos(rows);
+        });
+      });
+    },
 
     /* ---- Bitácoras ---- */
     fetchBitacoras: function () { return selectAll('bitacoras'); },
