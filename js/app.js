@@ -701,6 +701,11 @@
   function openCheckout() {
     var items = loadCart();
     if (!items.length) { alert('Tu carrito está vacío.'); return; }
+    currentCheckout = null;
+    var g = $('#co-generate'), sh = $('#co-share-whatsapp'), dn = $('#co-done');
+    if (g) g.hidden = false;
+    if (sh) sh.hidden = true;
+    if (dn) dn.hidden = true;
     var sum = $('#checkout-summary');
     if (sum) {
       var total = 0;
@@ -1288,6 +1293,16 @@
       if (f) f.classList.toggle('open');
     });
 
+    // Toggle del recomendador (colapsable)
+    bindOnce('#rec-toggle', 'click', function () {
+      var panel = $('#rec-panel');
+      var btn = $('#rec-toggle');
+      if (!panel) return;
+      var open = panel.hidden;
+      panel.hidden = !open;
+      if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
     bindOnce('#cart-checkout', 'click', openCheckout);
     bindOnce('#cart-clear', 'click', function () {
       if (confirm('¿Vaciar el carrito?')) { saveCart([]); renderCart(); }
@@ -1319,11 +1334,9 @@
         saved = Db.pushPedidos([pedido]).catch(function () { return null; });
       }
       saved.then(function () {
+        currentCheckout = pedido;
         buildWhatsAppOrder(pedido);
-        saveCart([]);
-        renderCart();
-        closeCheckoutModal();
-        closeCartDrawer();
+        showCoDone();
       });
     });
 
@@ -1334,8 +1347,35 @@
       closers[ci].addEventListener('click', closeCheckoutModal);
     }
 
+    // Botones secundarios del checkout
+    bindOnce('#co-share-whatsapp', 'click', function () {
+      var pedido = currentCheckout;
+      if (pedido) buildWhatsAppOrder(pedido);
+    });
+    bindOnce('#co-done', 'click', function () {
+      saveCart([]);
+      renderCart();
+      closeCheckoutModal();
+      closeCartDrawer();
+      currentCheckout = null;
+      var btn = $('#co-generate'), share = $('#co-share-whatsapp'), done = $('#co-done');
+      if (btn) btn.hidden = false;
+      if (share) share.hidden = true;
+      if (done) done.hidden = true;
+      go('tienda');
+    });
+
     loadShop();
     renderCart();
+  }
+
+  var currentCheckout = null;
+
+  function showCoDone() {
+    var btn = $('#co-generate'), share = $('#co-share-whatsapp'), done = $('#co-done');
+    if (btn) btn.hidden = true;
+    if (share) { share.hidden = false; share.classList.add('sharing'); }
+    if (done) done.hidden = false;
   }
 
 })();
