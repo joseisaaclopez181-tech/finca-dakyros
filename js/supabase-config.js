@@ -10,8 +10,8 @@
  *     Parametrización → Supabase (se guardan en localStorage dakyros-supabase-config).
  */
 (function () {
-  var SUPABASE_URL_DEFAULT = 'https://TU-PROYECTO.supabase.co';
-  var SUPABASE_ANON_KEY_DEFAULT = 'TU-ANON-PUBLIC-KEY';
+  var SUPABASE_URL_DEFAULT = 'https://gkeicdkfktphbzmwmvzw.supabase.co';
+  var SUPABASE_ANON_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrZWljZGtma3RwaGJ6bXdtdnp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0ODIzMTcsImV4cCI6MjEwNDA1ODMxN30.e6CNYehkldGMGtAa947Ksnz7Pf1ETrdwj4KXoW0lyC8';
 
   var CFG_KEY = 'dakyros-supabase-config';
 
