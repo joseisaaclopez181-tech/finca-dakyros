@@ -994,6 +994,14 @@ textarea.form-input { min-height: auto; }
 .cart-item .ci-name { font-weight: 700; color: var(--tierra); font-size: .88rem; line-height: 1.2; }
 .cart-item .ci-price { color: var(--accent-dark); font-weight: 600; font-size: .8rem; }
 
+.cart-item .ci-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.cart-item .ci-actions .btn { min-width: 28px; padding: 2px 6px; }
+
+.co-sum-row { display: flex; justify-content: space-between; gap: 10px; padding: var(--sp-1) 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+.co-sum-total { display: flex; justify-content: space-between; padding-top: var(--sp-2); font-weight: 700; }
+.co-sum-total strong { color: var(--accent-dark); }
+.modal-summary { margin-bottom: var(--sp-3); }
+
 /* ============================================================ */
 /*   MISC                                                       */
 /* ============================================================ */
