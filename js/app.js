@@ -1022,15 +1022,13 @@
   }
 
   function updatePedidoEstado(id, estado) {
-    var fetch = (Db.fetchPedidosAsAdmin || Db.fetchPedidos).call(Db);
-    fetch.then(function (rows) {
-      var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
-      if (!target) return;
-      target.estado = estado;
-      return Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
-        return Db.pushPedidos([target]);
-      });
-    }).then(function () { loadPedidos(); loadDashboard(); }).catch(function (e) {
+    Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
+      return Db.client().from('pedidos').update({ estado: estado }).eq('id', id);
+    }).then(function (res) {
+      if (res && res.error) throw res.error;
+      loadPedidos();
+      loadDashboard();
+    }).catch(function (e) {
       console.error('updatePedidoEstado error:', e);
       alert('Error al actualizar pedido.');
     });
