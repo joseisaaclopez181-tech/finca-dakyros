@@ -61,7 +61,14 @@
     pushCategorias: function (rows) { return upsert('categorias', rows); },
 
     /* ---- Pedidos ---- */
-    fetchPedidos: function () { return selectAll('pedidos'); },
+    fetchPedidos: function () {
+      var t = table('pedidos');
+      if (!t) return Promise.resolve([]);
+      return t.select('*').order('creado', { ascending: true }).then(function (r) {
+        if (r.error) { console.error('fetchPedidos error:', r.error.message); return []; }
+        return r.data || [];
+      });
+    },
     fetchPedidosAsAdmin: function () {
       var c = client();
       if (!c) return Promise.resolve([]);
