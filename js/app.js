@@ -997,23 +997,25 @@
     var fetch = (window.Db && Db.fetchPedidosAsAdmin) ? Db.fetchPedidosAsAdmin() : Db.fetchPedidos();
     fetch.then(function (rows) {
       if (!rows || !rows.length) { box.innerHTML = '<p class="muted">Sin pedidos registrados.</p>'; return; }
+      var nextMap = { nuevo: 'confirmado', confirmado: 'preparacion', preparacion: 'enviado', enviado: 'entregado' };
+      var labelMap = { nuevo: 'Confirmar', confirmado: 'Preparar', preparacion: 'Enviar', enviado: 'Entregar' };
       box.innerHTML = rows.map(function (o) {
         var items = Array.isArray(o.items) ? o.items.length : 0;
+        var est = o.estado || 'nuevo';
+        var next = nextMap[est];
+        var btnHtml = next
+          ? '<button class="btn btn-primary btn-sm" data-adv-pedido="' + o.id + '" data-next="' + next + '">' + (labelMap[est] || 'Avanzar') + '</button>'
+          : '<span class="muted">✔ Entregado</span>';
         return '<div class="reg-item">' +
           '<div><strong>' + esc(o.nombre || 'Cliente') + '</strong> · <span class="muted">' + esc(o.ciudad || '') + '</span></div>' +
           '<div class="muted">' + items + ' ítems · origen ' + esc(o.origen || '') + '</div>' +
-          '<div class="muted">Estado: <strong>' + esc(o.estado || 'nuevo') + '</strong> · ' + esc((o.creado || '').toString().slice(0, 10)) + '</div>' +
-          '<div class="reg-actions">' +
-          '<select class="form-input" data-estado-pedido="' + o.id + '">' +
-          ['nuevo','confirmado','preparacion','enviado','entregado'].map(function (e) {
-            return '<option value="' + e + '"' + (o.estado === e ? ' selected' : '') + '>' + e + '</option>';
-          }).join('') +
-          '</select>' +
+          '<div class="muted">Estado: <strong>' + esc(est) + '</strong> · ' + esc((o.creado || '').toString().slice(0, 10)) + '</div>' +
+          '<div class="reg-actions">' + btnHtml +
           '<button class="btn btn-ghost btn-sm danger" data-del-pedido="' + o.id + '">🗑</button>' +
           '</div></div>';
       }).join('');
-      bindCollection('[data-estado-pedido]', 'change', function (sel) {
-        updatePedidoEstado(sel.getAttribute('data-estado-pedido'), sel.value);
+      bindCollection('[data-adv-pedido]', 'click', function (btn) {
+        updatePedidoEstado(btn.getAttribute('data-adv-pedido'), btn.getAttribute('data-next'));
       });
       bindCollection('[data-del-pedido]', 'click', function (btn) { confirmDelete('pedido', btn.getAttribute('data-del-pedido')); });
     }).catch(function (e) { box.innerHTML = '<p class="form-error">Error al cargar pedidos.</p>'; });
@@ -1025,8 +1027,13 @@
       var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
       if (!target) return;
       target.estado = estado;
-      return Db.pushPedidos([target]);
-    }).then(function () { loadPedidos(); loadDashboard(); });
+      return Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
+        return Db.pushPedidos([target]);
+      });
+    }).then(function () { loadPedidos(); loadDashboard(); }).catch(function (e) {
+      console.error('updatePedidoEstado error:', e);
+      alert('Error al actualizar pedido.');
+    });
   }
 
   /* ---- CRUD GENÉRICO ---- */
@@ -1152,11 +1159,17 @@
       var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
       if (!target) return;
       var del = null;
-      var remapped = null;
-      if (kind === 'usuario') { remapped = target; del = Db.client().from('usuarios').delete().eq('id', target.id); }
-      else if (kind === 'categoria') { remapped = target; del = Db.client().from('categorias').delete().eq('id', target.id); }
-      else if (kind === 'producto') { remapped = target; del = Db.client().from('productos').delete().eq('id', target.id); }
-      else if (kind === 'pedido') { remapped = target; del = Db.client().from('pedidos').delete().eq('id', target.id); }
+      if (kind === 'pedido') {
+        del = Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
+          return Db.client().from('pedidos').delete().eq('id', target.id);
+        });
+      } else if (kind === 'usuario') {
+        del = Db.client().from('usuarios').delete().eq('id', target.id);
+      } else if (kind === 'categoria') {
+        del = Db.client().from('categorias').delete().eq('id', target.id);
+      } else if (kind === 'producto') {
+        del = Db.client().from('productos').delete().eq('id', target.id);
+      }
       if (!del) return;
       del.then(function () {
         if (kind === 'usuario') loadUsuarios();
