@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#3d2314">
+  <meta name="description" content="Finca Dakyros y su Laboratorio Transformador: tienda digital de cacao, chocolate y café, con operación agrícola offline-first en San Pedro Sula, Honduras.">
+  <title>Finca Dakyros · Cacao, Chocolate y Café</title>
+
+  <!-- PWA / Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+
+  <!-- iOS meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Dakyros">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ═══════════════ BARRRA DE ESTADO DE RED ═══════════════ -->
+  <div id="netbar" class="netbar" role="status" aria-live="polite">
+    <span id="net-status" class="net-status">
+      <span class="net-dot"></span>
+      <span id="net-text">Conectado</span>
+    </span>
+    <span id="pending-count" class="pending-chip" hidden>⏳ <span id="pending-num">0</span> pendientes</span>
+  </div>
+
+  <!-- ═══════════════ NAVEGACIÓN SUPERIOR ═══════════════ -->
+  <header class="app-header" id="app-header">
+    <button id="menu-btn" class="icon-btn" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="nav-menu" onclick="toggleMenu()">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <span class="sr-only">Menú</span>
+    </button>
+    <h1 class="brand" id="brand-title">Finca <span>Dakyros</span></h1>
+    <div class="header-spacer"></div>
+    <button id="cart-header-btn" class="icon-btn cart-btn" aria-label="Abrir carrito de compra" onclick="openCartDrawer()">
+      🛒<span id="cart-count-badge" class="cart-badge" hidden>0</span>
+    </button>
+  </header>
+
+  <!-- NAVEGACIÓN -->
+  <nav id="nav-menu" class="nav-drawer" aria-label="Navegación principal">
+    <div class="drawer-brand" id="drawer-brand">Finca Dakyros</div>
+    <ul>
+      <li><button class="nav-item" data-view="inicio" onclick="go('inicio');closeMenu()">🏠 Inicio</button></li>
+      <li><button class="nav-item" data-view="tienda" onclick="go('tienda');closeMenu()">🛒 Tienda</button></li>
+      <li><button class="nav-item" data-view="finca" onclick="go('finca');closeMenu()">🌱 Finca</button></li>
+      <li><button class="nav-item" data-view="panel" onclick="go('panel');closeMenu()">📊 Panel</button></li>
+      <li><button class="nav-item" data-view="cpanel" onclick="go('cpanel');closeMenu()">🔐 Administración</button></li>
+    </ul>
+    <div class="drawer-footer">© <span id="drawer-year"></span> Finca Dakyros</div>
+  </nav>
+  <div id="scrim" class="scrim" onclick="closeMenu()" hidden></div>
+
+  <main id="main" class="main">
+
+    <!-- ═══════════════ VISTA INICIO ═══════════════ -->
+    <section id="view-inicio" class="view view-active">
+      <div class="hero">
+        <h2>Del cacao al corazón</h2>
+        <p>Productos de la finca Dakyros y su Laboratorio Transformador de San Pedro Sula.</p>
+        <button class="btn btn-primary btn-lg" onclick="go('tienda')">🛒 Comprar ahora</button>
+        <button class="btn btn-secondary btn-lg" onclick="go('finca')">🌱 Bitácora de campo</button>
+      </div>
+
+      <h3 class="section-title">Nuestros productos</h3>
+      <div id="popular" class="shop-grid"></div>
+    </section>
+
+    <!-- ═══════════════ VISTA TIENDA ═══════════════ -->
+    <section id="view-tienda" class="view">
+      <!-- Banner / hero de la tienda -->
+      <div class="shop-hero">
+        <div class="shop-hero-content">
+          <span class="shop-hero-kicker">Colección de la finca</span>
+          <h2 class="shop-hero-title">Chocolate, cacao y café de altura</h2>
+          <p class="shop-hero-text">Productos artesanales del Laboratorio Transformador Dakyros, San Pedro Sula.</p>
+          <div class="shop-hero-cta">
+            <button class="btn btn-accent shop-scroll-btn" onclick="document.getElementById('shop-products').scrollIntoView({behavior:'smooth'})">Explorar productos</button>
+          </div>
+        </div>
+        <div class="shop-hero-emoji">🍫</div>
+      </div>
+
+      <!-- Categorías destacadas -->
+      <div class="shop-cats" id="shop-cats"></div>
+
+      <!-- Recomendador de sabor (colapsable) -->
+      <button class="rec-toggle" id="rec-toggle" aria-expanded="false" aria-controls="rec-panel">
+        🤖 <span>Te recomendamos con IA</span>
+        <span class="rec-arrow">▾</span>
+      </button>
+      <div class="card recommend-card" id="rec-panel" hidden>
+        <h3 class="card-title">Recomendador inteligente de sabor</h3>
+        <p class="card-sub">Responde 2 preguntas y te sugerimos el producto ideal.</p>
+        <form id="rec-form">
+          <fieldset class="fieldset">
+            <legend>1. Perfil de sabor preferido</legend>
+            <label class="radio-card">
+              <input type="radio" name="sabor" value="intenso" required>
+              <span><strong>Intenso</strong><small>Cacao puro y profundo</small></span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="sabor" value="cremoso">
+              <span><strong>Cremoso</strong><small>Suave y con leche</small></span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="sabor" value="aromatico">
+              <span><strong>Aromático</strong><small>Café de altura</small></span>
+            </label>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <legend>2. Ocasión de consumo</legend>
+            <label class="radio-card">
+              <input type="radio" name="ocasion" value="capricho" required>
+              <span><strong>Capricho</strong><small>Date un gusto personal</small></span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="ocasion" value="regalo">
+              <span><strong>Regalo</strong><small>Para sorprender a alguien</small></span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="ocasion" value="cafe">
+              <span><strong>Momento café</strong><small>Para empezar el día</small></span>
+            </label>
+          </fieldset>
+
+          <button type="submit" class="btn btn-primary btn-full">✨ Sugerir producto</button>
+        </form>
+
+        <div id="rec-result" class="rec-result" hidden>
+          <h4>Nuestra sugerencia para ti</h4>
+          <div id="rec-product" class="rec-product"></div>
+          <button id="rec-order" class="btn btn-accent btn-full">🛒 Añadir al carrito</button>
+        </div>
+      </div>
+
+      <!-- Barra de filtros / búsqueda -->
+      <div class="shop-toolbar">
+        <button class="btn btn-secondary shop-filter-btn" id="shop-filter-btn">
+          <span>☰</span> Filtrar
+        </button>
+        <div class="shop-count" id="shop-count"></div>
+      </div>
+
+      <div class="shop-layout">
+        <aside class="shop-filters" id="shop-filters">
+          <h3 class="shop-filters-title">Categorías</h3>
+          <ul class="shop-cat-list" id="shop-cat-list"></ul>
+          <div class="shop-search-row">
+            <input id="shop-search" class="form-input" type="search" placeholder="Buscar producto…" aria-label="Buscar producto">
+          </div>
+        </aside>
+
+        <div class="shop-products" id="shop-products"></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ VISTA FINCA (Offline-first) ═══════════════ -->
+    <section id="view-finca" class="view">
+      <h2 class="view-title">🌱 Bitácoras de campo</h2>
+      <p class="view-sub">Trabaja sin conexión. Tus registros se guardan en el dispositivo y se sincronizan automáticamente al recuperar señal.</p>
+
+      <div class="card">
+        <h3 class="card-title">Nuevo registro</h3>
+        <form id="finca-form">
+          <div class="form-row">
+            <label class="form-label" for="tipo">Tipo de proceso</label>
+            <select id="tipo" class="form-input" required>
+              <option value="">Selecciona…</option>
+              <option value="cosecha-cafe">Cosecha de Café</option>
+              <option value="cosecha-cacao">Cosecha de Cacao</option>
+              <option value="fermentacion">Fermentación</option>
+              <option value="gasto">Gasto</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label" for="lote">Lote</label>
+            <input id="lote" class="form-input" type="text" placeholder="Ej. Lote Norte" autocomplete="off">
+          </div>
+
+          <div class="form-row">
+            <label class="form-label" for="responsable">Responsable</label>
+            <input id="responsable" class="form-input" type="text" placeholder="Nombre de quien registra" required>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label" for="cantidad">Cantidad / Monto</label>
+            <input id="cantidad" class="form-input" type="number" placeholder="Kg o Lps." min="0" step="0.01">
+          </div>
+
+          <div class="form-row">
+            <label class="form-label" for="fecha">Fecha</label>
+            <input id="fecha" class="form-input" type="date" required>
+          </div>
+
+          <div class="form-row">
+            <div class="label-with-mic">
+              <label class="form-label" for="observaciones">Observaciones / Notas</label>
+              <button type="button" id="mic-btn" class="icon-btn mic-btn" aria-label="Dictar observaciones por voz">
+                🎤
+              </button>
+            </div>
+            <textarea id="observaciones" class="form-input" rows="3" placeholder="Dicta o escribe las notas del lote…"></textarea>
+            <p id="mic-status" class="mic-status" role="status" aria-live="polite"></p>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">💾 Guardar en dispositivo</button>
+        </form>
+      </div>
+
+      <h3 class="section-title">Registros recientes</h3>
+      <div id="finca-list" class="card reg-list"><p class="muted">Aún no hay registros guardados.</p></div>
+    </section>
+
+    <!-- ═══════════════ VISTA PANEL ═══════════════ -->
+    <section id="view-panel" class="view">
+      <h2 class="view-title">📊 Panel de control</h2>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-num" id="stat-pending">0</span>
+          <span class="stat-label">Pendientes de subir</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-total">0</span>
+          <span class="stat-label">Total registros</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-synced">0</span>
+          <span class="stat-label">Sincronizados</span>
+        </div>
+      </div>
+
+      <button id="sync-btn" class="btn btn-accent btn-full btn-lg">🔄 Forzar sincronización</button>
+      <p id="sync-status" class="sync-status" role="status" aria-live="polite"></p>
+
+      <h3 class="section-title">Filtros</h3>
+      <div class="filters">
+        <label class="form-label" for="filter-tipo">Proceso</label>
+        <select id="filter-tipo" class="form-input">
+          <option value="">Todos</option>
+          <option value="cosecha-cafe">Cosecha de Café</option>
+          <option value="cosecha-cacao">Cosecha de Cacao</option>
+          <option value="fermentacion">Fermentación</option>
+          <option value="gasto">Gasto</option>
+        </select>
+        <label class="form-label" for="filter-resp">Responsable</label>
+        <input id="filter-resp" class="form-input" type="text" placeholder="Buscar por responsable">
+      </div>
+
+      <h3 class="section-title">Bitácoras</h3>
+      <div id="panel-list" class="card reg-list"><p class="muted">Cargando registros…</p></div>
+    </section>
+
+    <!-- ═══════════════ VISTA LOGIN (cPanel) ═══════════════ -->
+    <section id="view-login" class="view">
+      <div class="login-wrap">
+        <div class="card login-card">
+          <div class="login-logo">🔐</div>
+          <h2 class="view-title" style="text-align:center;">Administración</h2>
+          <p class="view-sub" style="text-align:center;">Ingresa tus credenciales</p>
+          <form id="login-form" novalidate>
+            <div class="form-row">
+              <label class="form-label" for="login-user">Usuario</label>
+              <input id="login-user" class="form-input" type="text" placeholder="admin" autocomplete="username" required>
+            </div>
+            <div class="form-row">
+              <label class="form-label" for="login-pass">Clave</label>
+              <input id="login-pass" class="form-input" type="password" placeholder="••••••" autocomplete="current-password" required>
+            </div>
+            <p id="login-error" class="form-error" hidden role="alert"></p>
+            <button type="submit" class="btn btn-primary btn-full">Iniciar sesión</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ VISTA cPANEL ═══════════════ -->
+    <section id="view-cpanel" class="view">
+      <div class="cpanel-head">
+        <h2 class="view-title">🖥️ Panel de Administración</h2>
+        <button class="btn btn-ghost btn-sm" id="cpanel-logout">🚪 Salir</button>
+      </div>
+
+      <!-- Sub-navegación del cPanel -->
+      <nav class="cpanel-tabs" aria-label="Secciones de administración">
+        <button class="cpanel-tab active" data-cpanel="dashboard">📊 Dashboard</button>
+        <button class="cpanel-tab" data-cpanel="usuarios">👥 Usuarios</button>
+        <button class="cpanel-tab" data-cpanel="categorias">🗂️ Categorías</button>
+        <button class="cpanel-tab" data-cpanel="productos">📦 Productos</button>
+        <button class="cpanel-tab" data-cpanel="pedidos">🧾 Pedidos</button>
+        <button class="cpanel-tab" data-cpanel="parametrizacion">⚙️ Parametrización</button>
+      </nav>
+
+      <!-- Dashboard -->
+      <div class="cpanel-section active" data-cpanel-section="dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><span class="stat-num" id="cp-stat-pedidos">0</span><span class="stat-label">Pedidos</span></div>
+          <div class="stat-card"><span class="stat-num" id="cp-stat-productos">0</span><span class="stat-label">Productos</span></div>
+          <div class="stat-card"><span class="stat-num" id="cp-stat-categorias">0</span><span class="stat-label">Categorías</span></div>
+          <div class="stat-card"><span class="stat-num" id="cp-stat-usuarios">0</span><span class="stat-label">Usuarios</span></div>
+          <div class="stat-card"><span class="stat-num" id="cp-stat-pendientes">0</span><span class="stat-label">Pedidos en proceso</span></div>
+        </div>
+        <h3 class="section-title">Pedidos recientes</h3>
+        <div id="cp-dash-pedidos" class="card reg-list"><p class="muted">Sin pedidos registrados.</p></div>
+      </div>
+
+      <!-- Usuarios -->
+      <div class="cpanel-section" data-cpanel-section="usuarios">
+        <div class="cpanel-toolbar">
+          <h3 class="section-title">👥 Usuarios</h3>
+          <button class="btn btn-primary btn-sm" id="btn-new-user">+ Nuevo</button>
+        </div>
+        <div id="user-list" class="card reg-list"><p class="muted">Cargando usuarios…</p></div>
+      </div>
+
+      <!-- Categorías -->
+      <div class="cpanel-section" data-cpanel-section="categorias">
+        <div class="cpanel-toolbar">
+          <h3 class="section-title">🗂️ Categorías</h3>
+          <button class="btn btn-primary btn-sm" id="btn-new-cat">+ Nueva</button>
+        </div>
+        <div id="cat-list" class="card reg-list"><p class="muted">Cargando categorías…</p></div>
+      </div>
+
+      <!-- Productos -->
+      <div class="cpanel-section" data-cpanel-section="productos">
+        <div class="cpanel-toolbar">
+          <h3 class="section-title">📦 Productos</h3>
+          <button class="btn btn-primary btn-sm" id="btn-new-prod">+ Nuevo</button>
+        </div>
+        <div id="prod-list" class="card reg-list"><p class="muted">Cargando productos…</p></div>
+      </div>
+
+      <!-- Pedidos -->
+      <div class="cpanel-section" data-cpanel-section="pedidos">
+        <div class="cpanel-toolbar">
+          <h3 class="section-title">🧾 Seguimiento de pedidos</h3>
+          <button class="btn btn-secondary" id="pedidos-export-btn">📊 Exportar a Excel</button>
+        </div>
+        <div id="pedido-list" class="card reg-list"><p class="muted">Sin pedidos registrados.</p></div>
+      </div>
+
+      <!-- Parametrización (movida aquí) -->
+      <div class="cpanel-section" data-cpanel-section="parametrizacion">
+        <div class="card">
+          <h3 class="card-title">🏢 Identidad de la empresa</h3>
+          <form id="cfg-identity" class="cfg-form">
+            <div class="form-row">
+              <label class="form-label" for="cfg-nombre">Nombre de la empresa</label>
+              <input id="cfg-nombre" class="form-input" type="text" placeholder="Finca Dakyros" required>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Guardar identidad</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3 class="card-title">🦶 Footer (información)</h3>
+          <form id="cfg-footer" class="cfg-form">
+            <div class="form-row">
+              <label class="form-label" for="cfg-footer-txt">Texto del footer</label>
+              <textarea id="cfg-footer-txt" class="form-input" rows="3" placeholder="San Pedro Sula, Honduras · Laboratorio Transformador"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Guardar footer</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3 class="card-title">📱 WhatsApp para pedidos</h3>
+          <form id="cfg-whatsapp" class="cfg-form">
+            <div class="form-row">
+              <label class="form-label" for="cfg-whats">Número de WhatsApp</label>
+              <input id="cfg-whats" class="form-input" type="tel" inputmode="numeric" placeholder="504XXXXXXXX" required>
+            </div>
+            <button type="submit" class="btn btn-accent">💾 Guardar WhatsApp</button>
+          </form>
+        </div>
+        <p id="cfg-message" class="sync-status info" role="status" aria-live="polite"></p>
+        <button id="cfg-reset" class="btn btn-ghost btn-full">↩️ Restaurar valores originales</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════ FOOTER GLOBAL ═══════════════ -->
+  <footer class="site-footer" id="site-footer">
+    <p id="footer-text">San Pedro Sula, Honduras · Laboratorio Transformador</p>
+    <p class="footer-small">© <span id="footer-year"></span> Finca Dakyros</p>
+  </footer>
+
+  <!-- ═══════════════ NAVEGACIÓN INFERIOR (mobile-first) ═══════════════ -->
+  <nav class="tabbar" aria-label="Navegación inferior">
+    <button class="tab-btn" data-view="inicio" onclick="go('inicio')"><span class="tab-ic">🏠</span><span>Inicio</span></button>
+    <button class="tab-btn" data-view="tienda" onclick="go('tienda')"><span class="tab-ic">🛒</span><span>Tienda</span></button>
+    <button class="tab-btn" data-view="finca" onclick="go('finca')"><span class="tab-ic">🌱</span><span>Finca</span></button>
+    <button class="tab-btn" data-view="panel" onclick="go('panel')"><span class="tab-ic">📊</span><span>Panel</span></button>
+  </nav>
+
+  <!-- ═══════════════ CARRITO OFF-CANVAS ═══════════════ -->
+  <div id="cart-drawer-overlay" class="cart-overlay" onclick="closeCartDrawer()" hidden></div>
+  <aside id="cart-drawer" class="cart-drawer" role="dialog" aria-label="Carrito de compra" aria-hidden="true">
+    <div class="cart-drawer-head">
+      <h3>🛒 Tu carrito</h3>
+      <button class="icon-btn cart-drawer-close" aria-label="Cerrar carrito" onclick="closeCartDrawer()">✕</button>
+    </div>
+    <div class="cart-drawer-body">
+      <div id="cart-empty" class="cart-empty">
+        <p class="muted">Tu carrito está vacío.</p>
+      </div>
+      <ul id="cart-items" class="cart-items"></ul>
+    </div>
+    <div id="cart-summary" class="cart-summary" hidden>
+      <div class="cart-subtotal-row">
+        <span>Subtotal</span>
+        <strong id="cart-total-label">L 0.00</strong>
+      </div>
+      <button id="cart-checkout" class="btn btn-accent btn-full">📦 Realizar pedido</button>
+      <button id="cart-clear" class="btn btn-ghost btn-full">🗑️ Vaciar carrito</button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MODAL: DATOS DEL CLIENTE ═══════════════ -->
+  <div id="checkout-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="checkout-modal-title" hidden>
+    <div class="modal-overlay" data-modal-close></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="checkout-modal-title">📝 Datos del cliente</h2>
+        <button class="icon-btn modal-close" data-modal-close aria-label="Cerrar formulario">✕</button>
+      </div>
+
+      <div id="checkout-summary" class="modal-summary"></div>
+
+      <form id="checkout-form" novalidate>
+        <div class="form-row">
+          <label class="form-label" for="co-nombre">Nombre completo *</label>
+          <input id="co-nombre" class="form-input" type="text" placeholder="Tu nombre" autocomplete="name" required>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="co-ciudad">Ciudad de entrega *</label>
+          <input id="co-ciudad" class="form-input" type="text" placeholder="Ej. San Pedro Sula" autocomplete="address-level2" required>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="co-direccion">Dirección / Barrio <span class="muted">(opcional)</span></label>
+          <input id="co-direccion" class="form-input" type="text" placeholder="Ej. Col. Rivera Hernández" autocomplete="street-address">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="co-telefono">Teléfono <span class="muted">(opcional)</span></label>
+          <input id="co-telefono" class="form-input" type="tel" placeholder="Ej. +504 9600-0000" autocomplete="tel">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="co-nota">Nota adicional <span class="muted">(opcional)</span></label>
+          <textarea id="co-nota" class="form-input" rows="2" placeholder="Algún detalle de tu pedido…"></textarea>
+        </div>
+
+        <p id="co-error" class="form-error" hidden role="alert"></p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-modal-close>Cancelar</button>
+          <button type="submit" class="btn btn-accent" id="co-generate">💬 Generar WhatsApp</button>
+          <button type="button" class="btn btn-primary" id="co-share-whatsapp" hidden>📤 Compartir</button>
+          <button type="button" class="btn btn-primary btn-full" id="co-done" hidden>✅ Confirmar pedido y volver a la tienda</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL GENÉRICO DE CRUD (cPanel) ═══════════════ -->
+  <div id="crud-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="crud-modal-title" hidden>
+    <div class="modal-overlay" data-crud-close></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="crud-modal-title">Editar</h2>
+        <button class="icon-btn modal-close" data-crud-close aria-label="Cerrar">✕</button>
+      </div>
+      <form id="crud-form" novalidate>
+        <div id="crud-fields" class="crud-fields"></div>
+        <p id="crud-error" class="form-error" hidden role="alert"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-crud-close>Cancelar</button>
+          <button type="submit" class="btn btn-accent">💾 Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ⊡ Estado de red monitorizado -->
+
+  <!-- Supabase: cliente JS (CDN), configuración y capa de datos -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
