@@ -930,7 +930,6 @@
         }).join('');
       }).catch(function (e) { console.error('Dashboard', e); });
   }
-  }
 
   function setText(id, val) {
     var el = $(id);
