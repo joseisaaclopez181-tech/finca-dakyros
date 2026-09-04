@@ -11,7 +11,7 @@
      Reemplaza por el número real de Finca Dakyros (en formato internacional
      sin "+", ni espacios, ni guiones). Ej.: 50496000000
      ════════════════════════════════════════════════ */
-  const WHATSAPP_NUMBER = '50494522586';
+  let WHATSAPP_NUMBER = '50494522586';
 
   /* Catálogo de productos */
   const PRODUCTOS = [
@@ -687,15 +687,409 @@
           $all('.cpanel-section').forEach(function (s) {
             s.classList.toggle('active', s.getAttribute('data-cpanel-section') === target);
           });
+          if (target === 'dashboard') loadDashboard();
+          if (target === 'usuarios') loadUsuarios();
+          if (target === 'categorias') loadCategorias();
+          if (target === 'productos') loadProductos();
+          if (target === 'pedidos') loadPedidos();
+          if (target === 'parametrizacion') loadParametrizacion();
         });
       })(tabs[i]);
     }
+    // Botón "+ Nuevo" de usuarios
+    bindOnce('#btn-new-user', 'click', function () {
+      openCrudModal('usuario', null);
+    });
+    bindOnce('#btn-new-cat', 'click', function () {
+      openCrudModal('categoria', null);
+    });
+    bindOnce('#btn-new-prod', 'click', function () {
+      openCrudModal('producto', null);
+    });
+    bindOnce('#pedidos-export-btn', 'click', exportPedidosExcel);
+    initConfigForms();
+
     // Protección: si no hay sesión, volver al login
     if (!isAdminAuthed()) {
       go('login');
       return;
     }
+    // Cargar datos iniciales (dashboard activo)
+    loadDashboard();
+    loadUsuarios();
+    loadCategorias();
+    loadProductos();
+    loadPedidos();
   }
+
+  /* ---- Helper utilitario de cPanel ---- */
+  function bindOnce(sel, evt, fn) {
+    var el = $(sel);
+    if (!el || el.dataset.bound) return;
+    el.dataset.bound = '1';
+    el.addEventListener(evt, fn);
+  }
+
+  function cpanelContainer(id, loadingText) {
+    var el = $(id);
+    if (el) el.innerHTML = '<p class="muted">' + (loadingText || 'Cargando…') + '</p>';
+    return el;
+  }
+
+  /* ---- DASHBOARD ---- */
+  function loadDashboard() {
+    Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), Db.fetchPedidos()])
+      .then(function (res) {
+        var prod = res[0], cat = res[1], usr = res[2], ped = res[3];
+        setText('cp-stat-productos', prod.length);
+        setText('cp-stat-categorias', cat.length);
+        setText('cp-stat-usuarios', usr.length);
+        setText('cp-stat-pedidos', ped.length);
+        var pend = ped.filter(function (p) { return p.estado === 'nuevo' || p.estado === 'confirmado' || p.estado === 'preparacion'; });
+        setText('cp-stat-pendientes', pend.length);
+        var dash = $('#cp-dash-pedidos');
+        if (!dash) return;
+        if (!ped.length) {
+          dash.innerHTML = '<p class="muted">Sin pedidos registrados.</p>';
+          return;
+        }
+        dash.innerHTML = ped.slice(0, 5).map(function (o) {
+          var items = Array.isArray(o.items) ? o.items.length : 0;
+          return '<div class="reg-item"><div><strong>' + esc(o.nombre || 'Cliente') + '</strong> · ' + esc(o.ciudad || '') + '</div>' +
+            '<div class="muted">' + items + ' ítems · ' + esc(o.estado || 'nuevo') + '</div></div>';
+        }).join('');
+      }).catch(function (e) { console.error('Dashboard', e); });
+  }
+
+  function setText(id, val) {
+    var el = $(id);
+    if (el) el.textContent = val;
+  }
+
+  /* ---- USUARIOS ---- */
+  function loadUsuarios() {
+    var box = cpanelContainer('#user-list', 'Cargando usuarios…');
+    Db.fetchUsuarios().then(function (rows) {
+      if (!rows.length) { box.innerHTML = '<p class="muted">No hay usuarios.</p>'; return; }
+      box.innerHTML = rows.map(function (u) {
+        return '<div class="reg-item">' +
+          '<div><strong>' + esc(u.usuario || '') + '</strong> · <span class="muted">' + esc(u.rol || '') + '</span></div>' +
+          '<div class="muted">' + esc(u.nombre || '') + '</div>' +
+          '<div class="reg-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-edit-usuario="' + u.id + '">✎ Editar</button>' +
+          '<button class="btn btn-ghost btn-sm danger" data-del-usuario="' + u.id + '">🗑</button>' +
+          '</div></div>';
+      }).join('');
+      bindCollection('[data-edit-usuario]', 'click', function (btn) { openCrudModal('usuario', btn.getAttribute('data-edit-usuario')); });
+      bindCollection('[data-del-usuario]', 'click', function (btn) { confirmDelete('usuario', btn.getAttribute('data-del-usuario')); });
+    }).catch(function (e) { box.innerHTML = '<p class="form-error">Error al cargar usuarios.</p>'; });
+  }
+
+  /* ---- CATEGORÍAS ---- */
+  function loadCategorias() {
+    var box = cpanelContainer('#cat-list', 'Cargando categorías…');
+    Db.fetchCategorias().then(function (rows) {
+      if (!rows.length) { box.innerHTML = '<p class="muted">No hay categorías.</p>'; return; }
+      box.innerHTML = rows.map(function (c) {
+        return '<div class="reg-item"><div><strong>' + esc(c.nombre) + '</strong></div>' +
+          '<div class="reg-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-edit-cat="' + c.id + '">✎ Editar</button>' +
+          '<button class="btn btn-ghost btn-sm danger" data-del-cat="' + c.id + '">🗑</button>' +
+          '</div></div>';
+      }).join('');
+      bindCollection('[data-edit-cat]', 'click', function (btn) { openCrudModal('categoria', btn.getAttribute('data-edit-cat')); });
+      bindCollection('[data-del-cat]', 'click', function (btn) { confirmDelete('categoria', btn.getAttribute('data-del-cat')); });
+    }).catch(function (e) { box.innerHTML = '<p class="form-error">Error al cargar categorías.</p>'; });
+  }
+
+  /* ---- PRODUCTOS ---- */
+  function loadProductos() {
+    var box = cpanelContainer('#prod-list', 'Cargando productos…');
+    Db.fetchProductos().then(function (rows) {
+      if (!rows.length) { box.innerHTML = '<p class="muted">No hay productos.</p>'; return; }
+      box.innerHTML = rows.map(function (p) {
+        return '<div class="reg-item">' +
+          '<div><strong>' + esc(p.nombre) + '</strong> · <span class="muted">' + esc(p.categoria || '') + '</span></div>' +
+          '<div class="muted">' + esc(p.emoji || '') + ' L ' + (p.precio != null ? p.precio : '') + '</div>' +
+          '<div class="reg-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-edit-prod="' + p.id + '">✎ Editar</button>' +
+          '<button class="btn btn-ghost btn-sm danger" data-del-prod="' + p.id + '">🗑</button>' +
+          '</div></div>';
+      }).join('');
+      bindCollection('[data-edit-prod]', 'click', function (btn) { openCrudModal('producto', btn.getAttribute('data-edit-prod')); });
+      bindCollection('[data-del-prod]', 'click', function (btn) { confirmDelete('producto', btn.getAttribute('data-del-prod')); });
+    }).catch(function (e) { box.innerHTML = '<p class="form-error">Error al cargar productos.</p>'; });
+  }
+
+  /* ---- PEDIDOS ---- */
+  function loadPedidos() {
+    var box = cpanelContainer('#pedido-list', 'Cargando pedidos…');
+    Db.fetchPedidos().then(function (rows) {
+      if (!rows.length) { box.innerHTML = '<p class="muted">Sin pedidos registrados.</p>'; return; }
+      box.innerHTML = rows.map(function (o) {
+        var items = Array.isArray(o.items) ? o.items.length : 0;
+        return '<div class="reg-item">' +
+          '<div><strong>' + esc(o.nombre || 'Cliente') + '</strong> · <span class="muted">' + esc(o.ciudad || '') + '</span></div>' +
+          '<div class="muted">' + items + ' ítems · origen ' + esc(o.origen || '') + '</div>' +
+          '<div class="muted">Estado: <strong>' + esc(o.estado || 'nuevo') + '</strong> · ' + esc((o.creado || '').toString().slice(0, 10)) + '</div>' +
+          '<div class="reg-actions">' +
+          '<select class="form-input" data-estado-pedido="' + o.id + '">' +
+          ['nuevo','confirmado','preparacion','enviado','entregado'].map(function (e) {
+            return '<option value="' + e + '"' + (o.estado === e ? ' selected' : '') + '>' + e + '</option>';
+          }).join('') +
+          '</select>' +
+          '<button class="btn btn-ghost btn-sm danger" data-del-pedido="' + o.id + '">🗑</button>' +
+          '</div></div>';
+      }).join('');
+      bindCollection('[data-estado-pedido]', 'change', function (sel) {
+        updatePedidoEstado(sel.getAttribute('data-estado-pedido'), sel.value);
+      });
+      bindCollection('[data-del-pedido]', 'click', function (btn) { confirmDelete('pedido', btn.getAttribute('data-del-pedido')); });
+    }).catch(function (e) { box.innerHTML = '<p class="form-error">Error al cargar pedidos.</p>'; });
+  }
+
+  function updatePedidoEstado(id, estado) {
+    Db.fetchPedidos().then(function (rows) {
+      var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
+      if (!target) return;
+      target.estado = estado;
+      return Db.pushPedidos([target]);
+    }).then(function () { loadPedidos(); loadDashboard(); });
+  }
+
+  /* ---- CRUD GENÉRICO ---- */
+  function openCrudModal(kind, id) {
+    var all = { usuario: [], categoria: [], producto: [] };
+    var loadP = (kind === 'usuario') ? Db.fetchUsuarios() : (kind === 'categoria') ? Db.fetchCategorias() : Db.fetchProductos();
+    loadP.then(function (rows) {
+      var record = null;
+      if (id) {
+        for (var i = 0; i < rows.length; i++) {
+          if (String(rows[i].id) === String(id)) { record = rows[i]; break; }
+        }
+      }
+      renderCrudForm(kind, record);
+    }).catch(function () { renderCrudForm(kind, null); });
+  }
+
+  function renderCrudForm(kind, record) {
+    var title = $('#crud-modal-title');
+    var fields = $('#crud-fields');
+    var err = $('#crud-error');
+    if (err) err.hidden = true;
+    var defs = crudFieldDefs(kind);
+    if (title) title.textContent = (record ? 'Editar' : 'Nuevo') + ' ' + cap(kind);
+    fields.innerHTML = defs.map(function (f) {
+      var val = record ? (record[f.key] != null ? record[f.key] : '') : (f.def != null ? f.def : '');
+      var html = '<div class="form-row"><label class="form-label" for="crud-' + f.key + '">' + f.label + '</label>';
+      if (f.type === 'select') {
+        html += '<select id="crud-' + f.key + '" class="form-input">' +
+          f.options.map(function (o) {
+            var v = (typeof o === 'object') ? o.value : o;
+            var l = (typeof o === 'object') ? o.label : o;
+            return '<option value="' + v + '"' + (String(val) === String(v) ? ' selected' : '') + '>' + l + '</option>';
+          }).join('') + '</select>';
+      } else {
+        html += '<input id="crud-' + f.key + '" class="form-input" type="' + (f.type || 'text') + '" value="' + esc(String(val)) + '"' + (f.required ? ' required' : '') + '>';
+      }
+      return html + '</div>';
+    }).join('');
+
+    var modal = $('#crud-modal');
+    if (modal) modal.hidden = false;
+
+    var form = $('#crud-form');
+    if (form.dataset.bound === kind + (record ? record.id : 'new')) return;
+    form.dataset.bound = kind + (record ? record.id : 'new');
+    form.onsubmit = function (e) {
+      e.preventDefault();
+      var data = {};
+      for (var i = 0; i < defs.length; i++) {
+        var el = document.getElementById('crud-' + defs[i].key);
+        if (!el) continue;
+        var v = el.value;
+        if (defs[i].type === 'number') v = parseFloat(v) || 0;
+        data[defs[i].key] = v;
+      }
+      if (record) {
+        data.id = record.id;
+        Object.keys(record).forEach(function (k) { if (!(k in data)) data[k] = record[k]; });
+      }
+      saveCrud(kind, data).then(function (ok) {
+        if (ok) {
+          closeCrudModal();
+          if (kind === 'usuario') loadUsuarios();
+          if (kind === 'categoria') loadCategorias();
+          if (kind === 'producto') loadProductos();
+          loadDashboard();
+          renderCatalog();
+        }
+      });
+    };
+
+    var closers = $all('[data-crud-close]');
+    for (var c = 0; c < closers.length; c++) {
+      if (closers[c].dataset.closeBound) continue;
+      closers[c].dataset.closeBound = '1';
+      closers[c].addEventListener('click', closeCrudModal);
+    }
+  }
+
+  function crudFieldDefs(kind) {
+    if (kind === 'usuario') {
+      return [
+        { key: 'usuario', label: 'Usuario', required: true },
+        { key: 'nombre', label: 'Nombre completo', required: true },
+        { key: 'rol', label: 'Rol', type: 'select', options: ['admin', 'vendedor', 'campo'], required: true },
+        { key: 'activo', label: 'Activo', type: 'select', options: [{ value: 'true', label: 'Sí' }, { value: 'false', label: 'No' }] }
+      ];
+    }
+    if (kind === 'categoria') {
+      return [
+        { key: 'nombre', label: 'Nombre de la categoría', required: true }
+      ];
+    }
+    return [
+      { key: 'nombre', label: 'Nombre', required: true },
+      { key: 'categoria', label: 'Categoría', required: true },
+      { key: 'descripcion', label: 'Descripción' },
+      { key: 'precio', label: 'Precio (L)', type: 'number', required: true },
+      { key: 'emoji', label: 'Emoji' },
+      { key: 'perfil', label: 'Perfil de sabor', type: 'select', options: ['intenso', 'cremoso', 'aromatico', 'diario'] },
+      { key: 'ocasion', label: 'Ocasión', type: 'select', options: ['capricho', 'regalo', 'diario'] }
+    ];
+  }
+
+  function saveCrud(kind, data) {
+    if (kind === 'usuario') {
+      if ('activo' in data) data.activo = String(data.activo) === 'true';
+      return Db.pushUsuarios([data]).then(function () { return true; }).catch(function () { return false; });
+    }
+    if (kind === 'categoria') return Db.pushCategorias([data]).then(function () { return true; }).catch(function () { return false; });
+    return Db.pushProductos([data]).then(function () { return true; }).catch(function () { return false; });
+  }
+
+  function confirmDelete(kind, id) {
+    if (!confirm('¿Eliminar este registro?')) return;
+    var fn = null;
+    if (kind === 'usuario') fn = Db.fetchUsuarios;
+    if (kind === 'categoria') fn = Db.fetchCategorias;
+    if (kind === 'producto') fn = Db.fetchProductos;
+    if (kind === 'pedido') fn = Db.fetchPedidos;
+    fn().then(function (rows) {
+      var target = rows.filter(function (r) { return String(r.id) === String(id); })[0];
+      if (!target) return;
+      var del = null;
+      var remapped = null;
+      if (kind === 'usuario') { remapped = target; del = Db.client().from('usuarios').delete().eq('id', target.id); }
+      else if (kind === 'categoria') { remapped = target; del = Db.client().from('categorias').delete().eq('id', target.id); }
+      else if (kind === 'producto') { remapped = target; del = Db.client().from('productos').delete().eq('id', target.id); }
+      else if (kind === 'pedido') { remapped = target; del = Db.client().from('pedidos').delete().eq('id', target.id); }
+      if (!del) return;
+      del.then(function () {
+        if (kind === 'usuario') loadUsuarios();
+        if (kind === 'categoria') loadCategorias();
+        if (kind === 'producto') loadProductos();
+        if (kind === 'pedido') loadPedidos();
+        loadDashboard();
+        renderCatalog();
+      }).catch(function (e) { console.error(e); alert('No se pudo eliminar.'); });
+    });
+  }
+
+  function closeCrudModal() {
+    var m = $('#crud-modal');
+    if (m) m.hidden = true;
+  }
+
+  /* ---- PARAMETRIZACIÓN (config en localStorage) ---- */
+  var CFG_KEY = 'dakyros-cfg';
+
+  function loadParametrizacion() {
+    var cfg = loadCfg();
+    if (cfg.nombre) setVal('#cfg-nombre', cfg.nombre);
+    if (cfg.footer) setVal('#cfg-footer-txt', cfg.footer);
+    if (cfg.whatsapp) setVal('#cfg-whats', cfg.whatsapp);
+  }
+
+  function loadCfg() {
+    try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function saveCfg(partial) {
+    var cfg = Object.assign(loadCfg(), partial);
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch (e) {}
+    return cfg;
+  }
+  function setVal(sel, val) {
+    var el = $(sel);
+    if (el) el.value = val;
+  }
+  function showCfgMsg(msg) {
+    var el = $('#cfg-message');
+    if (el) { el.textContent = msg; el.classList.remove('hidden'); setTimeout(function () { el.textContent = ''; }, 3000); }
+  }
+  function initConfigForms() {
+    bindOnce('#cfg-identity', 'submit', function (e) {
+      e.preventDefault();
+      var v = $('#cfg-nombre').value;
+      saveCfg({ nombre: v });
+      var navBrand = $('#nav-brand'), footerBrand = $('#footer-brand');
+      if (navBrand) navBrand.textContent = v;
+      showCfgMsg('Identidad guardada.');
+    });
+    bindOnce('#cfg-footer', 'submit', function (e) {
+      e.preventDefault();
+      var v = $('#cfg-footer-txt').value;
+      saveCfg({ footer: v });
+      var fText = $('#footer-text');
+      if (fText) fText.textContent = v;
+      showCfgMsg('Footer guardado.');
+    });
+    bindOnce('#cfg-whatsapp', 'submit', function (e) {
+      e.preventDefault();
+      var v = $('#cfg-whats').value.trim();
+      if (!v) return;
+      saveCfg({ whatsapp: v });
+      WHATSAPP_NUMBER = v;
+      showCfgMsg('WhatsApp guardado.');
+    });
+    bindOnce('#cfg-reset', 'click', function () {
+      try { localStorage.removeItem(CFG_KEY); } catch (e) {}
+      loadParametrizacion();
+      showCfgMsg('Valores restaurados.');
+    });
+  }
+
+  function exportPedidosExcel() {
+    Db.fetchPedidos().then(function (rows) {
+      if (!rows.length) { alert('No hay pedidos para exportar.'); return; }
+      var head = ['ID', 'Nombre', 'Ciudad', 'Dirección', 'Teléfono', 'Nota', 'Estado', 'Origen', 'Fecha', 'Ítems'];
+      var lines = [head.join('\t')];
+      rows.forEach(function (o) {
+        var items = Array.isArray(o.items) ? o.items.map(function (i) { return (i.nombre || '') + ' x' + (i.cantidad || 1); }).join(', ') : '';
+        lines.push([o.id, o.nombre, o.ciudad, o.direccion, o.telefono, o.nota, o.estado, o.origen, (o.creado || '').toString().slice(0,16), items].join('\t'));
+      });
+      var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pedidos-finca-dakyros.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    });
+  }
+
+  function bindCollection(sel, evt, fn) {
+    var els = $all(sel);
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].dataset.bound) continue;
+      els[i].dataset.bound = '1';
+      els[i].addEventListener(evt, function () { fn(this); });
+    }
+  }
+
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
   /* ════════════════════════════════════════════════
      INICIALIZACIÓN
