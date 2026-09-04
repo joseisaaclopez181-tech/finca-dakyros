@@ -911,6 +911,7 @@
     Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), (Db.fetchPedidosAsAdmin || Db.fetchPedidos)()])
       .then(function (res) {
         var prod = res[0], cat = res[1], usr = res[2], ped = res[3];
+        alert('Dashboard debug: prod=' + prod.length + ' cat=' + cat.length + ' usr=' + usr.length + ' ped=' + ped.length);
         setText('cp-stat-productos', prod.length);
         setText('cp-stat-categorias', cat.length);
         setText('cp-stat-usuarios', usr.length);
