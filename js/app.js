@@ -908,9 +908,12 @@
 
   /* ---- DASHBOARD ---- */
   function loadDashboard() {
-    Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..').then(function () {
-      return Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), Db.fetchPedidos()]);
-    }).then(function (res) {
+    Db.signIn('joseisaaclopez181@gmail.com', 'unitec1234..')
+      .catch(function () {})
+      .then(function () {
+        return Promise.all([Db.fetchProductos(), Db.fetchCategorias(), Db.fetchUsuarios(), Db.fetchPedidos()]);
+      })
+      .then(function (res) {
         var prod = res[0], cat = res[1], usr = res[2], ped = res[3];
         setText('cp-stat-productos', prod.length);
         setText('cp-stat-categorias', cat.length);
