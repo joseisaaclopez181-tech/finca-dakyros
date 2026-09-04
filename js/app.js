@@ -80,10 +80,15 @@
   /* ════════════════════════════════════════════════
      NAVEGACIÓN ENTRE VISTAS
      ════════════════════════════════════════════════ */
-  const views = ['inicio', 'tienda', 'finca', 'panel'];
+  const views = ['inicio', 'tienda', 'finca', 'panel', 'login', 'cpanel'];
 
   window.go = function (name) {
     if (views.indexOf(name) === -1) return;
+    if (name === 'cpanel') {
+      if (!isAdminAuthed()) {
+        name = 'login';
+      }
+    }
     $all('.view').forEach(function (v) { v.classList.remove('view-active'); });
     $('#view-' + name).classList.add('view-active');
     currentView = name;
@@ -111,6 +116,7 @@
     if (currentView === 'tienda') renderCatalog();
     if (currentView === 'panel') renderPanel();
     if (currentView === 'finca') renderFincaList();
+    if (currentView === 'cpanel') initCpanel();
   }
 
   /* ════════════════════════════════════════════════
@@ -603,9 +609,99 @@
   }
 
   /* ════════════════════════════════════════════════
+     ADMINISTRACIÓN (Login + cPanel)
+     ════════════════════════════════════════════════ */
+  var AUTH_KEY = 'dakyros-admin-auth';
+
+  function isAdminAuthed() {
+    try { return localStorage.getItem(AUTH_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function setAdminAuthed(on) {
+    try {
+      if (on) localStorage.setItem(AUTH_KEY, '1');
+      else localStorage.removeItem(AUTH_KEY);
+    } catch (e) {}
+  }
+
+  function initAuthUI() {
+    var form = $('#login-form');
+    if (!form || form.dataset.bound) return;
+    form.dataset.bound = '1';
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var user = ($('#login-user').value || '').trim();
+      var pass = $('#login-pass').value || '';
+      var errEl = $('#login-error');
+      if (errEl) errEl.hidden = true;
+
+      if (!user || !pass) {
+        if (errEl) { errEl.textContent = 'Ingresa usuario y clave.'; errEl.hidden = false; }
+        return;
+      }
+
+      if (!window.SupabaseConfig || !SupabaseConfig.isConfigured()) {
+        if (errEl) {
+          errEl.textContent = 'Supabase no está configurado. Ve a Parametrización para añadir las credenciales y crear el usuario administrador.';
+          errEl.hidden = false;
+        }
+        return;
+      }
+
+      Db.signIn(user, pass).then(function (res) {
+        if (res && res.error) throw res.error;
+        setAdminAuthed(true);
+        go('cpanel');
+      }).catch(function (err) {
+        console.error('Login falló', err);
+        if (errEl) {
+          errEl.textContent = (err && err.message) || 'No se pudo iniciar sesión. Revisa tus credenciales.';
+          errEl.hidden = false;
+        }
+      });
+    });
+
+    var logout = $('#cpanel-logout');
+    if (logout && !logout.dataset.bound) {
+      logout.dataset.bound = '1';
+      logout.addEventListener('click', function () {
+        setAdminAuthed(false);
+        if (window.Db && Db.signOut) Db.signOut().catch(function(){});
+        go('login');
+      });
+    }
+  }
+
+  function initCpanel() {
+    initAuthUI();
+    // Inicializar sub-tabs del cPanel
+    var tabs = $all('.cpanel-tab');
+    for (var i = 0; i < tabs.length; i++) {
+      (function (tab) {
+        if (tab.dataset.bound) return;
+        tab.dataset.bound = '1';
+        tab.addEventListener('click', function () {
+          $all('.cpanel-tab').forEach(function (t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          var target = tab.getAttribute('data-cpanel');
+          $all('.cpanel-section').forEach(function (s) {
+            s.classList.toggle('active', s.getAttribute('data-cpanel-section') === target);
+          });
+        });
+      })(tabs[i]);
+    }
+    // Protección: si no hay sesión, volver al login
+    if (!isAdminAuthed()) {
+      go('login');
+      return;
+    }
+  }
+
+  /* ════════════════════════════════════════════════
      INICIALIZACIÓN
      ════════════════════════════════════════════════ */
   document.addEventListener('DOMContentLoaded', function () {
+    initAuthUI();
     openDB().then(function () {
       updateNetworkStatus();
       initMic();
