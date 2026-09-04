@@ -113,7 +113,7 @@
 
   function renderActiveView() {
     if (currentView === 'inicio') renderPopular();
-    if (currentView === 'tienda') renderCatalog();
+    if (currentView === 'tienda') loadShop();
     if (currentView === 'panel') renderPanel();
     if (currentView === 'finca') renderFincaList();
     if (currentView === 'cpanel') initCpanel();
@@ -491,27 +491,88 @@
      TIENDA — CATÁLOGO Y RENDER
      ════════════════════════════════════════════════ */
   function productCardHTML(p) {
+    var precio = (p.precio != null) ? 'L ' + number(p.precio) : '';
     return '<article class="product-card">' +
       '<div class="p-body">' +
-      '<div class="p-emoji">' + p.emoji + '</div>' +
-      '<span class="p-badge">' + p.precio + '</span>' +
+      '<div class="p-emoji">' + (p.emoji || '📦') + '</div>' +
+      '<span class="p-badge">' + precio + '</span>' +
       '<h4>' + esc(p.nombre) + '</h4>' +
       '<p class="p-desc">' + esc(p.descripcion) + '</p>' +
-      '<button class="btn btn-accent" onclick="orderProduct(\'' + p.id + '\')">Pedir</button>' +
+      '<button class="btn btn-accent" onclick="addToCart(\'' + p.id + '\')">🛒 Añadir</button>' +
       '</div>' +
       '</article>';
   }
 
-  function renderCatalog() {
-    $('#catalog').innerHTML = PRODUCTOS.map(productCardHTML).join('');
+  function number(n) {
+    var v = parseFloat(n);
+    if (isNaN(v)) return '0.00';
+    return v.toFixed(2);
+  }
+
+  var shopAll = [];
+  var shopCat = '';
+
+  function loadShop() {
+    if (!window.Db || !Db.fetchProductos) { renderShop(); return; }
+    Db.fetchProductos().then(function (rows) {
+      shopAll = rows.filter(function (p) { return p.activo !== false; });
+      renderShop();
+      renderPopular();
+    }).catch(function () { renderShop(); });
+  }
+
+  function renderShop() {
+    var list = shopAll;
+    if (shopCat) list = shopAll.filter(function (p) { return p.categoria === shopCat; });
+    var query = $('#shop-search') ? ($('#shop-search').value || '').trim().toLowerCase() : '';
+    if (query) list = list.filter(function (p) {
+      return (p.nombre || '').toLowerCase().indexOf(query) !== -1 ||
+             (p.descripcion || '').toLowerCase().indexOf(query) !== -1;
+    });
+    var box = $('#shop-products');
+    if (box) {
+      box.innerHTML = list.length ? list.map(productCardHTML).join('') : '<p class="muted">No hay productos.</p>';
+    }
+    var count = $('#shop-count');
+    if (count) count.textContent = list.length + ' producto(s)';
+
+    var cats = [];
+    shopAll.forEach(function (p) { if (cats.indexOf(p.categoria) === -1 && p.categoria) cats.push(p.categoria); });
+    var catList = $('#shop-cat-list');
+    if (catList) {
+      var lis = '<li><button class="' + (shopCat === '' ? 'active' : '') + '" data-cat="">Todas</button></li>' +
+        cats.map(function (c) {
+          return '<li><button class="' + (shopCat === c ? 'active' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '</button></li>';
+        }).join('');
+      catList.innerHTML = lis;
+      bindCollection('#shop-cat-list [data-cat]', 'click', function (btn) {
+        shopCat = btn.getAttribute('data-cat');
+        renderShop();
+      });
+    }
+
+    var catsRow = $('#shop-cats');
+    if (catsRow) {
+      catsRow.innerHTML = cats.map(function (c) {
+        return '<span class="shop-cat-chip" data-chip="' + esc(c) + '">' + esc(c) + '</span>';
+      }).join('');
+      bindCollection('#shop-cats [data-chip]', 'click', function (chip) {
+        shopCat = chip.getAttribute('data-chip');
+        renderShop();
+      });
+    }
   }
 
   function renderPopular() {
-    const picks = ['barra-70', 'choco-50-leche', 'cafe-altura'];
-    const list = picks.map(function (id) {
-      return PRODUCTOS.filter(function (p) { return p.id === id; })[0];
-    });
-    $('#popular').innerHTML = list.map(productCardHTML).join('');
+    var box = $('#popular');
+    if (!box) return;
+    var picks = shopAll.slice(0, 3);
+    if (!picks.length) {
+      picks = PRODUCTOS.slice(0, 3).map(function (p) {
+        return { id: p.id, nombre: p.nombre, descripcion: p.descripcion, emoji: p.emoji, precio: p.precio, perfil: p.perfil, ocasion: p.ocasion, categoria: p.categoria };
+      });
+    }
+    box.innerHTML = picks.map(productCardHTML).join('');
   }
 
   /* ════════════════════════════════════════════════
@@ -521,59 +582,163 @@
 
   $('#rec-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    const sabor = $('input[name="sabor"]:checked').value;
-    const ocasion = $('input[name="ocasion"]:checked').value;
+    var sabor = $('input[name="sabor"]:checked').value;
+    var ocasion = $('input[name="ocasion"]:checked').value;
+    var pool = shopAll.length ? shopAll : PRODUCTOS;
 
     // Reglas de sugerencia: perfiles de Productos
-    const match = PRODUCTOS.filter(function (p) {
+    var match = pool.filter(function (p) {
       return p.perfil === sabor && p.ocasion === ocasion;
-    })[0] || PRODUCTOS.filter(function (p) { return p.perfil === sabor; })[0] || PRODUCTOS[0];
+    })[0] || pool.filter(function (p) { return p.perfil === sabor; })[0] || pool[0];
+    if (!match) return;
 
     currentSuggestion = match;
     $('#rec-product').innerHTML =
-      '<span class="rp-emoji">' + match.emoji + '</span>' +
-      '<div class="rp-info"><h5>' + esc(match.nombre) + '</h5><p>' + esc(match.descripcion) + ' · ' + match.precio + '</p></div>';
+      '<span class="rp-emoji">' + (match.emoji || '📦') + '</span>' +
+      '<div class="rp-info"><h5>' + esc(match.nombre) + '</h5><p>' + esc(match.descripcion) + ' · L ' + number(match.precio) + '</p></div>';
     $('#rec-result').hidden = false;
     $('#rec-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
   /* ════════════════════════════════════════════════
-     PEDIDO — FORMULARIO ULTRARRÁPIDO + WHATSAPP
+     CARRITO DE COMPRA
      ════════════════════════════════════════════════ */
-  function startOrder(productId) {
-    const p = productId
-      ? PRODUCTOS.filter(function (x) { return x.id === productId; })[0]
-      : currentSuggestion;
-    if (!p) return;
+  var CART_KEY = 'dakyros-cart';
 
-    const nombre = prompt('Pedido: ' + p.nombre + '\n\nNombre completo:', '').trim();
-    if (!nombre) return;
-    const ciudad = prompt('Ciudad de entrega:', '').trim();
-    if (!ciudad) return;
-    const cantidad = prompt('Requerimiento / Cantidad:', '1').trim() || '1';
-
-    buildWhatsAppOrder({ product: p, nombre: nombre, ciudad: ciudad, cantidad: cantidad });
+  function loadCart() {
+    try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch (e) { return []; }
   }
-  window.orderProduct = function (id) {
-    if (!navigator.onLine) {
-      alert('Necesitas conexión para generar el pedido por WhatsApp. Conéctate o revisa la señal.');
-      return;
+  function saveCart(items) {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+
+  function findProduct(id) {
+    for (var i = 0; i < shopAll.length; i++) if (String(shopAll[i].id) === String(id)) return shopAll[i];
+    for (var j = 0; j < PRODUCTOS.length; j++) if (String(PRODUCTOS[j].id) === String(id)) return PRODUCTOS[j];
+    return null;
+  }
+
+  window.addToCart = function (id) {
+    var p = findProduct(id);
+    if (!p) return;
+    var items = loadCart();
+    var found = false;
+    for (var i = 0; i < items.length; i++) {
+      if (String(items[i].id) === String(id)) { items[i].cantidad = (items[i].cantidad || 1) + 1; found = true; break; }
     }
-    startOrder(id);
+    if (!found) items.push({ id: String(id), nombre: p.nombre, precio: parseFloat(p.precio) || 0, cantidad: 1 });
+    saveCart(items);
+    renderCart();
+    flashCartButton();
   };
-  window.startOrder = startOrder;
+
+  function renderCart() {
+    var items = loadCart();
+    var count = 0, total = 0;
+    items.forEach(function (it) { count += it.cantidad; total += (it.precio || 0) * it.cantidad; });
+
+    var badge = $('#cart-count-badge');
+    if (badge) { badge.textContent = count; badge.hidden = count === 0; }
+
+    var empty = $('#cart-empty'), list = $('#cart-items'), sum = $('#cart-summary');
+    if (empty) empty.hidden = items.length > 0;
+    if (sum) sum.hidden = items.length === 0;
+    if (list) {
+      list.innerHTML = items.map(function (it, idx) {
+        return '<li class="cart-item">' +
+          '<div class="ci-info"><strong>' + esc(it.nombre) + '</strong>' +
+          '<div class="muted">L ' + number(it.precio) + ' × ' + it.cantidad + '</div></div>' +
+          '<div class="ci-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-dec-cart="' + idx + '">−</button>' +
+          '<button class="btn btn-ghost btn-sm" data-inc-cart="' + idx + '">+</button>' +
+          '<button class="btn btn-ghost btn-sm danger" data-del-cart="' + idx + '">🗑</button>' +
+          '</div></li>';
+      }).join('');
+      bindCollection('#cart-items [data-inc-cart]', 'click', function (b) { changeCartQty(parseInt(b.getAttribute('data-inc-cart'), 10), 1); });
+      bindCollection('#cart-items [data-dec-cart]', 'click', function (b) { changeCartQty(parseInt(b.getAttribute('data-dec-cart'), 10), -1); });
+      bindCollection('#cart-items [data-del-cart]', 'click', function (b) { removeCartItem(parseInt(b.getAttribute('data-del-cart'), 10)); });
+    }
+    var totalLabel = $('#cart-total-label');
+    if (totalLabel) totalLabel.textContent = 'L ' + number(total);
+  }
+
+  function changeCartQty(idx, delta) {
+    var items = loadCart();
+    if (!items[idx]) return;
+    items[idx].cantidad = (items[idx].cantidad || 1) + delta;
+    if (items[idx].cantidad <= 0) items.splice(idx, 1);
+    saveCart(items);
+    renderCart();
+  }
+  function removeCartItem(idx) {
+    var items = loadCart();
+    items.splice(idx, 1);
+    saveCart(items);
+    renderCart();
+  }
+  function flashCartButton() {
+    var b = $('#cart-header-btn');
+    if (b) { b.classList.add('bump'); setTimeout(function () { b.classList.remove('bump'); }, 300); }
+  }
+
+  window.openCartDrawer = function () {
+    renderCart();
+    var drawer = $('#cart-drawer'), overlay = $('#cart-drawer-overlay');
+    if (drawer) drawer.classList.add('open');
+    if (overlay) overlay.hidden = false;
+    if (drawer) drawer.setAttribute('aria-hidden', 'false');
+  };
+  window.closeCartDrawer = function () {
+    var drawer = $('#cart-drawer'), overlay = $('#cart-drawer-overlay');
+    if (drawer) drawer.classList.remove('open');
+    if (overlay) overlay.hidden = true;
+    if (drawer) drawer.setAttribute('aria-hidden', 'true');
+  };
+
+  /* ════════════════════════════════════════════════
+     CHECKOUT - GUARDAR PEDIDO + WHATSAPP
+     ════════════════════════════════════════════════ */
+  function openCheckout() {
+    var items = loadCart();
+    if (!items.length) { alert('Tu carrito está vacío.'); return; }
+    var sum = $('#checkout-summary');
+    if (sum) {
+      var total = 0;
+      items.forEach(function (it) { total += (it.precio || 0) * it.cantidad; });
+      sum.innerHTML = items.map(function (it) {
+        return '<div class="co-sum-row"><span>' + esc(it.nombre) + ' × ' + it.cantidad + '</span><span>L ' + number((it.precio || 0) * it.cantidad) + '</span></div>';
+      }).join('') + '<div class="co-sum-total">Total: <strong>L ' + number(total) + '</strong></div>';
+    }
+    var modal = $('#checkout-modal');
+    if (modal) modal.hidden = false;
+  }
+  function closeCheckoutModal() {
+    var m = $('#checkout-modal');
+    if (m) m.hidden = true;
+  }
+
+  function showCoError(msg) {
+    var el = $('#co-error');
+    if (el) { el.textContent = msg; el.hidden = false; setTimeout(function () { el.hidden = true; }, 3500); }
+  }
 
   function buildWhatsAppOrder(data) {
-    const mensaje =
-      '¡Hola Dakyros! Adjunto mi pedido automatizado:\n' +
-      'Cliente: ' + data.nombre + '\n' +
-      'Ciudad: ' + data.ciudad + '\n' +
-      'Producto: ' + data.product.nombre + '\n' +
-      'Detalle: ' + data.cantidad;
-
-    const url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(mensaje);
+    var lineas = ['¡Hola Dakyros! Adjunto mi pedido:'];
+    lineas.push('Cliente: ' + data.nombre);
+    lineas.push('Ciudad: ' + data.ciudad);
+    if (data.direccion) lineas.push('Dirección: ' + data.direccion);
+    if (data.telefono) lineas.push('Teléfono: ' + data.telefono);
+    (data.items || []).forEach(function (it) {
+      lineas.push('• ' + it.nombre + ' × ' + it.cantidad + ' = L ' + number((it.precio || 0) * it.cantidad));
+    });
+    if (data.nota) lineas.push('Nota: ' + data.nota);
+    if (data.update) lineas.push('N. pedido: ' + data.update);
+    var url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(lineas.join('\n'));
     window.open(url, '_blank', 'noopener');
   }
+
+  window.orderProduct = function (id) { addToCart(id); };
+  window.startOrder = window.orderProduct;
 
   /* ════════════════════════════════════════════════
      UTILIDADES / SEGURIDAD
@@ -922,7 +1087,7 @@
           if (kind === 'categoria') loadCategorias();
           if (kind === 'producto') loadProductos();
           loadDashboard();
-          renderCatalog();
+          loadShop();
         }
       });
     };
@@ -992,7 +1157,7 @@
         if (kind === 'producto') loadProductos();
         if (kind === 'pedido') loadPedidos();
         loadDashboard();
-        renderCatalog();
+        loadShop();
       }).catch(function (e) { console.error(e); alert('No se pudo eliminar.'); });
     });
   }
@@ -1096,6 +1261,7 @@
      ════════════════════════════════════════════════ */
   document.addEventListener('DOMContentLoaded', function () {
     initAuthUI();
+    initCartUI();
     openDB().then(function () {
       updateNetworkStatus();
       initMic();
@@ -1111,5 +1277,65 @@
       registerSW();
     });
   });
+
+  function initCartUI() {
+    bindOnce('#rec-order', 'click', function () {
+      if (currentSuggestion) addToCart(currentSuggestion.id);
+    });
+    bindOnce('#shop-search', 'input', renderShop);
+    bindOnce('#shop-filter-btn', 'click', function () {
+      var f = $('#shop-filters');
+      if (f) f.classList.toggle('open');
+    });
+
+    bindOnce('#cart-checkout', 'click', openCheckout);
+    bindOnce('#cart-clear', 'click', function () {
+      if (confirm('¿Vaciar el carrito?')) { saveCart([]); renderCart(); }
+    });
+    bindOnce('#checkout-form', 'submit', function (e) {
+      e.preventDefault();
+      var nombre = $('#co-nombre').value.trim();
+      var ciudad = $('#co-ciudad').value.trim();
+      if (!nombre || !ciudad) { showCoError('Completa nombre y ciudad.'); return; }
+      var direccion = $('#co-direccion').value.trim();
+      var telefono = $('#co-telefono').value.trim();
+      var nota = $('#co-nota').value.trim();
+      var items = loadCart();
+      if (!items.length) { showCoError('El carrito está vacío.'); return; }
+
+      var pedido = {
+        nombre: nombre,
+        ciudad: ciudad,
+        direccion: direccion,
+        telefono: telefono,
+        nota: nota,
+        items: items,
+        estado: 'nuevo',
+        origen: 'whatsapp'
+      };
+
+      var saved = Promise.resolve();
+      if (window.Db && Db.pushPedidos) {
+        saved = Db.pushPedidos([pedido]).catch(function () { return null; });
+      }
+      saved.then(function () {
+        buildWhatsAppOrder(pedido);
+        saveCart([]);
+        renderCart();
+        closeCheckoutModal();
+        closeCartDrawer();
+      });
+    });
+
+    var closers = $all('#checkout-modal [data-modal-close]');
+    for (var ci = 0; ci < closers.length; ci++) {
+      if (closers[ci].dataset.closeBound) continue;
+      closers[ci].dataset.closeBound = '1';
+      closers[ci].addEventListener('click', closeCheckoutModal);
+    }
+
+    loadShop();
+    renderCart();
+  }
 
 })();
